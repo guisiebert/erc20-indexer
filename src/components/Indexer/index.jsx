@@ -40,36 +40,56 @@ export function Indexer() {
       addr = userAddress
     }
 
-    try {
-      const data = await alchemy.core.getTokenBalances(addr);
-      setResults(data);
+    // Check if regular EOA address or ENS
+    if (addr.length == 42) {
+      try {
+        const data = await alchemy.core.getTokenBalances(addr);
+        setResults(data);
+  
+        const tokenDataPromises = [];
+      
+        for (let i = 0; i < data.tokenBalances.length; i++) {
+          const tokenData = alchemy.core.getTokenMetadata(
+            data.tokenBalances[i].contractAddress
+            );
+          tokenDataPromises.push(tokenData);
+        }
+  
+        setTokenDataObjects(await Promise.all(tokenDataPromises));
+        setHasQueried(true);
+  
+      } catch (err) {
+        console.log("YOU GOT AN ERROR", err)
+        setTimeout(() => {setLoading(false)}, 500)
+        
+  
+        toast({
+          title: "Not a valid address",
+          description: "This address doesn't seem to be correct",
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        })
+  
+      }
+    } else {
+      // IF NOT a regular EOA address
+      console.log("not 40 letters. sorry", addr.length)
+      console.log("trying as ENS")
 
-      const tokenDataPromises = [];
-    
-      for (let i = 0; i < data.tokenBalances.length; i++) {
-        const tokenData = alchemy.core.getTokenMetadata(
-          data.tokenBalances[i].contractAddress
-          );
-        tokenDataPromises.push(tokenData);
+      try {
+        const address = await alchemy.core.resolveName(addr)
+        console.log(`The address of ${addr} is ${address}`);
+        getTokenBalance(address);
+      } catch (error) {
+        console.error(`Failed to resolve ENS name: ${ensName}`);
+        console.error(error);
       }
 
-      setTokenDataObjects(await Promise.all(tokenDataPromises));
-      setHasQueried(true);
-
-    } catch (err) {
-      console.log("YOU GOT AN ERROR", err)
-      setTimeout(() => {setLoading(false)}, 1000)
-      
-
-      toast({
-        title: "Not a valid address",
-        description: "This address doesn't seem to be correct",
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      })
 
     }
+
+    
   }
 
   useEffect(( ) => { 
